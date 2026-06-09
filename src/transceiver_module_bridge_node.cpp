@@ -54,7 +54,7 @@ void TransceiverModuleBridge::TimerCB()
 {
   // タイムアウト処理
   ++control_lost_counter_;
-  if (control_lost_counter_ > 1000) {
+  if (control_lost_counter_ > CB_RATE * CONTROL_LOST_TIMEOUT) {
     // 全入力をリセット
     game_data_input_ = attracts_msgs::msg::GameDataInput();
   }
