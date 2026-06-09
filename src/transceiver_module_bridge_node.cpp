@@ -63,49 +63,72 @@ void TransceiverModuleBridge::TimerCB()
   game_data_input_pub_->publish(game_data_input_);
   game_data_robot_pub_->publish(game_data_robot_);
 
-  // シリアルデータ受信
-  buffer_index_ = read(fd1_, buffer_, sizeof(buffer_) - 1);
+  // シリアルデータ受信（バッファ末尾へ追記）
+  if (buffer_index_ >= BUFFER_SIZE - 1) {
+    // バッファ満杯フェイルセーフ: 同期不能とみなしてリセット
+    buffer_index_ = 0;
+  }
+  int n = read(fd1_, buffer_ + buffer_index_, BUFFER_SIZE - 1 - buffer_index_);
+  if (n > 0) {
+    buffer_index_ += n;
+  }
 
-  // フレーム処理
-  if (buffer_index_ >= 7) {
-    uint8_t start_of_frame = buffer_[0];
-    uint8_t command_type = buffer_[1];
-    uint16_t data_length = buffer_[2] + (buffer_[3] << 8);  // リトルエンディアン
-    uint8_t crc8 = buffer_[4];
+  // バッファ内の完全なフレームをすべて処理
+  ProcessBuffer(
+    buffer_, buffer_index_, game_data_input_, game_data_robot_, control_lost_counter_);
+}
+
+void TransceiverModuleBridge::DropOneByte(uint8_t * buffer, int & buffer_index)
+{
+  for (int i = 0; i < buffer_index - 1; ++i) {
+    buffer[i] = buffer[i + 1];
+  }
+  --buffer_index;
+}
+
+void TransceiverModuleBridge::ProcessBuffer(
+  uint8_t * buffer, int & buffer_index,
+  attracts_msgs::msg::GameDataInput & game_data_input,
+  attracts_msgs::msg::GameDataRobot & game_data_robot,
+  int & control_lost_counter)
+{
+  while (buffer_index >= 7) {
+    uint8_t start_of_frame = buffer[0];
+    uint8_t command_type = buffer[1];
+    uint16_t data_length = buffer[2] + (buffer[3] << 8);  // リトルエンディアン
+    uint8_t crc8 = buffer[4];
 
     // ヘッダー検証
     if (start_of_frame != 0xAE || data_length > 993 ||
-      CalculateCRC8(buffer_, 4) != crc8)
+      CalculateCRC8(buffer, 4) != crc8)
     {
-      // エラー: 1バイト進める
-      for (int i = 0; i < buffer_index_ - 1; ++i) {
-        buffer_[i] = buffer_[i + 1];
-      }
-      --buffer_index_;
-    } else if (buffer_index_ >= data_length + 7) {
-      // CRC-16検証
-      uint16_t crc16 =
-        buffer_[buffer_index_ - 2] + (buffer_[buffer_index_ - 1] << 8);
-      if (CalculateCRC16(buffer_, buffer_index_ - 2) != crc16) {
-        // CRCエラー: 1バイト進める
-        for (int i = 0; i < buffer_index_ - 1; ++i) {
-          buffer_[i] = buffer_[i + 1];
-        }
-        --buffer_index_;
-      } else {
-        // 正常フレーム処理
-        ProcessFrameData(
-          command_type, buffer_ + 5, data_length,
-          game_data_input_, game_data_robot_, control_lost_counter_);
-
-        // バッファを更新
-        int frame_size = data_length + 7;
-        for (int i = 0; i < buffer_index_ - frame_size; ++i) {
-          buffer_[i] = buffer_[i + frame_size];
-        }
-        buffer_index_ -= frame_size;
-      }
+      DropOneByte(buffer, buffer_index);
+      continue;
     }
+
+    // フレーム未完: 追記を待つ
+    int frame_size = data_length + 7;
+    if (buffer_index < frame_size) {
+      break;
+    }
+
+    // CRC-16検証（フレーム末尾の2バイト、フレーム境界で計算）
+    uint16_t crc16 = buffer[frame_size - 2] + (buffer[frame_size - 1] << 8);
+    if (CalculateCRC16(buffer, frame_size - 2) != crc16) {
+      DropOneByte(buffer, buffer_index);
+      continue;
+    }
+
+    // 正常フレーム処理
+    ProcessFrameData(
+      command_type, buffer + 5, data_length,
+      game_data_input, game_data_robot, control_lost_counter);
+
+    // 処理済みフレームをバッファから除去
+    for (int i = 0; i < buffer_index - frame_size; ++i) {
+      buffer[i] = buffer[i + frame_size];
+    }
+    buffer_index -= frame_size;
   }
 }
 

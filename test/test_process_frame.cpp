@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <vector>
+
 #include "attracts_bridge/transceiver_module_bridge_node.hpp"
 
 // Helper to call ProcessFrameData with fresh output structs
@@ -161,4 +163,136 @@ TEST(ProcessFrameDataTest, UnknownCommandTypeNoOp)
   int counter = 7;
   TransceiverModuleBridge::ProcessFrameData(0xFF, data, 1, input, robot, counter);
   EXPECT_EQ(7, counter);  // unchanged
+}
+
+// ---- ProcessBuffer (frame framing / multi-frame / resync) ----
+
+// Build a full frame: 0xAE, type, len(LE), CRC8(header4), payload..., CRC16(LE)
+static std::vector<uint8_t> BuildFrame(
+  uint8_t command_type, const std::vector<uint8_t> & payload)
+{
+  uint16_t len = static_cast<uint16_t>(payload.size());
+  std::vector<uint8_t> frame;
+  frame.push_back(0xAE);
+  frame.push_back(command_type);
+  frame.push_back(static_cast<uint8_t>(len & 0xFF));
+  frame.push_back(static_cast<uint8_t>((len >> 8) & 0xFF));
+  frame.push_back(TransceiverModuleBridge::CalculateCRC8(frame.data(), 4));
+  frame.insert(frame.end(), payload.begin(), payload.end());
+  uint16_t crc16 = TransceiverModuleBridge::CalculateCRC16(frame.data(), frame.size());
+  frame.push_back(static_cast<uint8_t>(crc16 & 0xFF));
+  frame.push_back(static_cast<uint8_t>((crc16 >> 8) & 0xFF));
+  return frame;
+}
+
+// Input payload: mouse_delta_x=+10, mouse_delta_y=-5, left button + W key
+static std::vector<uint8_t> SampleInputPayload()
+{
+  return {0x0A, 0x00, 0xFB, 0xFF, 0x01, 0x80, 0x00, 0x00, 0x00};
+}
+
+// Robot payload: type=0, team=0, speed=20, maxHP=100, curHP=100, maxHeat=200, curHeat=50
+static std::vector<uint8_t> SampleRobotPayload()
+{
+  return {0x00, 0x00, 0x14, 0x64, 0x00, 0x64, 0x00, 0xC8, 0x00, 0x32, 0x00};
+}
+
+TEST(ProcessBufferTest, SingleValidInputFrameConsumed)
+{
+  auto frame = BuildFrame(0x00, SampleInputPayload());
+  int buffer_index = static_cast<int>(frame.size());
+  uint8_t buffer[1500];
+  std::copy(frame.begin(), frame.end(), buffer);
+
+  attracts_msgs::msg::GameDataInput input;
+  attracts_msgs::msg::GameDataRobot robot;
+  int counter = 999;
+  TransceiverModuleBridge::ProcessBuffer(buffer, buffer_index, input, robot, counter);
+
+  EXPECT_EQ(0, buffer_index);  // フレームを消費し尽くす
+  EXPECT_EQ(10, input.mouse_delta_x);
+  EXPECT_EQ(-5, input.mouse_delta_y);
+  EXPECT_TRUE(input.mouse_left_button);
+  EXPECT_TRUE(input.key_w);
+  EXPECT_EQ(0, counter);  // 入力フレーム受信で通信正常
+}
+
+TEST(ProcessBufferTest, TwoConcatenatedFramesBothConsumed)
+{
+  auto f1 = BuildFrame(0x00, SampleInputPayload());
+  auto f2 = BuildFrame(0x01, SampleRobotPayload());
+  std::vector<uint8_t> bytes;
+  bytes.insert(bytes.end(), f1.begin(), f1.end());
+  bytes.insert(bytes.end(), f2.begin(), f2.end());
+
+  int buffer_index = static_cast<int>(bytes.size());
+  uint8_t buffer[1500];
+  std::copy(bytes.begin(), bytes.end(), buffer);
+
+  attracts_msgs::msg::GameDataInput input;
+  attracts_msgs::msg::GameDataRobot robot;
+  int counter = 0;
+  TransceiverModuleBridge::ProcessBuffer(buffer, buffer_index, input, robot, counter);
+
+  EXPECT_EQ(0, buffer_index);  // 連結された2フレームを両方処理
+  EXPECT_EQ(10, input.mouse_delta_x);
+  EXPECT_EQ(20, robot.projectile_speed_max);
+  EXPECT_EQ(100, robot.current_hp);
+}
+
+TEST(ProcessBufferTest, PartialFrameRetained)
+{
+  auto frame = BuildFrame(0x00, SampleInputPayload());
+  // 末尾2バイト（フレーム未完）を欠いた状態
+  int partial = static_cast<int>(frame.size()) - 2;
+  int buffer_index = partial;
+  uint8_t buffer[1500];
+  std::copy(frame.begin(), frame.begin() + partial, buffer);
+
+  attracts_msgs::msg::GameDataInput input;
+  attracts_msgs::msg::GameDataRobot robot;
+  int counter = 5;
+  TransceiverModuleBridge::ProcessBuffer(buffer, buffer_index, input, robot, counter);
+
+  // 未完フレームはバッファに残し、消費しない
+  EXPECT_EQ(partial, buffer_index);
+  EXPECT_EQ(5, counter);  // まだ処理していない
+}
+
+TEST(ProcessBufferTest, LeadingGarbageResyncs)
+{
+  auto frame = BuildFrame(0x00, SampleInputPayload());
+  std::vector<uint8_t> bytes = {0x12, 0x34, 0xFF};  // 先頭ノイズ
+  bytes.insert(bytes.end(), frame.begin(), frame.end());
+
+  int buffer_index = static_cast<int>(bytes.size());
+  uint8_t buffer[1500];
+  std::copy(bytes.begin(), bytes.end(), buffer);
+
+  attracts_msgs::msg::GameDataInput input;
+  attracts_msgs::msg::GameDataRobot robot;
+  int counter = 999;
+  TransceiverModuleBridge::ProcessBuffer(buffer, buffer_index, input, robot, counter);
+
+  EXPECT_EQ(0, buffer_index);  // ノイズを1バイトずつ送って再同期し処理
+  EXPECT_EQ(10, input.mouse_delta_x);
+  EXPECT_EQ(0, counter);
+}
+
+TEST(ProcessBufferTest, BadCrc16FrameDropped)
+{
+  auto frame = BuildFrame(0x00, SampleInputPayload());
+  frame[frame.size() - 1] ^= 0xFF;  // CRC-16を破壊
+  int buffer_index = static_cast<int>(frame.size());
+  uint8_t buffer[1500];
+  std::copy(frame.begin(), frame.end(), buffer);
+
+  attracts_msgs::msg::GameDataInput input;
+  attracts_msgs::msg::GameDataRobot robot;
+  int counter = 5;
+  TransceiverModuleBridge::ProcessBuffer(buffer, buffer_index, input, robot, counter);
+
+  // 不正フレームは消費されず（1バイトずつ送って再同期試行）入力は更新されない
+  EXPECT_EQ(0, input.mouse_delta_x);
+  EXPECT_EQ(5, counter);
 }

@@ -27,10 +27,16 @@ public:
     attracts_msgs::msg::GameDataInput & game_data_input,
     attracts_msgs::msg::GameDataRobot & game_data_robot,
     int & control_lost_counter);
+  static void ProcessBuffer(
+    uint8_t * buffer, int & buffer_index,
+    attracts_msgs::msg::GameDataInput & game_data_input,
+    attracts_msgs::msg::GameDataRobot & game_data_robot,
+    int & control_lost_counter);
 
 private:
   int OpenSerialPort(const std::string & device_name);
   void TimerCB();
+  static void DropOneByte(uint8_t * buffer, int & buffer_index);
 
   std::string device_name_;
   int fd1_ = -1;
