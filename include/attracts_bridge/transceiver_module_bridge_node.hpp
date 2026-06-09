@@ -16,7 +16,7 @@ class TransceiverModuleBridge : public rclcpp::Node
 {
 public:
   static constexpr int BUFFER_SIZE = 1500;
-  static constexpr double CB_RATE = 20.0;  // Hz
+  static constexpr double CB_RATE = 100.0;  // Hz
 
   TransceiverModuleBridge();
 
