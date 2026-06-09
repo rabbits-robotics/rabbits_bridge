@@ -207,7 +207,10 @@ TEST(ProcessBufferTest, SingleValidInputFrameConsumed)
   attracts_msgs::msg::GameDataInput input;
   attracts_msgs::msg::GameDataRobot robot;
   int counter = 999;
-  TransceiverModuleBridge::ProcessBuffer(buffer, buffer_index, input, robot, counter);
+  bool input_updated = false;
+  bool robot_updated = false;
+  TransceiverModuleBridge::ProcessBuffer(
+    buffer, buffer_index, input, robot, counter, input_updated, robot_updated);
 
   EXPECT_EQ(0, buffer_index);  // フレームを消費し尽くす
   EXPECT_EQ(10, input.mouse_delta_x);
@@ -215,6 +218,8 @@ TEST(ProcessBufferTest, SingleValidInputFrameConsumed)
   EXPECT_TRUE(input.mouse_left_button);
   EXPECT_TRUE(input.key_w);
   EXPECT_EQ(0, counter);  // 入力フレーム受信で通信正常
+  EXPECT_TRUE(input_updated);
+  EXPECT_FALSE(robot_updated);
 }
 
 TEST(ProcessBufferTest, TwoConcatenatedFramesBothConsumed)
@@ -232,12 +237,17 @@ TEST(ProcessBufferTest, TwoConcatenatedFramesBothConsumed)
   attracts_msgs::msg::GameDataInput input;
   attracts_msgs::msg::GameDataRobot robot;
   int counter = 0;
-  TransceiverModuleBridge::ProcessBuffer(buffer, buffer_index, input, robot, counter);
+  bool input_updated = false;
+  bool robot_updated = false;
+  TransceiverModuleBridge::ProcessBuffer(
+    buffer, buffer_index, input, robot, counter, input_updated, robot_updated);
 
   EXPECT_EQ(0, buffer_index);  // 連結された2フレームを両方処理
   EXPECT_EQ(10, input.mouse_delta_x);
   EXPECT_EQ(20, robot.projectile_speed_max);
   EXPECT_EQ(100, robot.current_hp);
+  EXPECT_TRUE(input_updated);
+  EXPECT_TRUE(robot_updated);
 }
 
 TEST(ProcessBufferTest, PartialFrameRetained)
@@ -252,11 +262,15 @@ TEST(ProcessBufferTest, PartialFrameRetained)
   attracts_msgs::msg::GameDataInput input;
   attracts_msgs::msg::GameDataRobot robot;
   int counter = 5;
-  TransceiverModuleBridge::ProcessBuffer(buffer, buffer_index, input, robot, counter);
+  bool input_updated = false;
+  bool robot_updated = false;
+  TransceiverModuleBridge::ProcessBuffer(
+    buffer, buffer_index, input, robot, counter, input_updated, robot_updated);
 
   // 未完フレームはバッファに残し、消費しない
   EXPECT_EQ(partial, buffer_index);
   EXPECT_EQ(5, counter);  // まだ処理していない
+  EXPECT_FALSE(input_updated);
 }
 
 TEST(ProcessBufferTest, LeadingGarbageResyncs)
@@ -272,11 +286,15 @@ TEST(ProcessBufferTest, LeadingGarbageResyncs)
   attracts_msgs::msg::GameDataInput input;
   attracts_msgs::msg::GameDataRobot robot;
   int counter = 999;
-  TransceiverModuleBridge::ProcessBuffer(buffer, buffer_index, input, robot, counter);
+  bool input_updated = false;
+  bool robot_updated = false;
+  TransceiverModuleBridge::ProcessBuffer(
+    buffer, buffer_index, input, robot, counter, input_updated, robot_updated);
 
   EXPECT_EQ(0, buffer_index);  // ノイズを1バイトずつ送って再同期し処理
   EXPECT_EQ(10, input.mouse_delta_x);
   EXPECT_EQ(0, counter);
+  EXPECT_TRUE(input_updated);
 }
 
 TEST(ProcessBufferTest, BadCrc16FrameDropped)
@@ -290,9 +308,13 @@ TEST(ProcessBufferTest, BadCrc16FrameDropped)
   attracts_msgs::msg::GameDataInput input;
   attracts_msgs::msg::GameDataRobot robot;
   int counter = 5;
-  TransceiverModuleBridge::ProcessBuffer(buffer, buffer_index, input, robot, counter);
+  bool input_updated = false;
+  bool robot_updated = false;
+  TransceiverModuleBridge::ProcessBuffer(
+    buffer, buffer_index, input, robot, counter, input_updated, robot_updated);
 
   // 不正フレームは消費されず（1バイトずつ送って再同期試行）入力は更新されない
   EXPECT_EQ(0, input.mouse_delta_x);
   EXPECT_EQ(5, counter);
+  EXPECT_FALSE(input_updated);
 }

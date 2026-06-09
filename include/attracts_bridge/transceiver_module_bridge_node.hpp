@@ -32,7 +32,8 @@ public:
     uint8_t * buffer, int & buffer_index,
     attracts_msgs::msg::GameDataInput & game_data_input,
     attracts_msgs::msg::GameDataRobot & game_data_robot,
-    int & control_lost_counter);
+    int & control_lost_counter,
+    bool & input_updated, bool & robot_updated);
 
 private:
   int OpenSerialPort(const std::string & device_name);

@@ -54,14 +54,12 @@ void TransceiverModuleBridge::TimerCB()
 {
   // タイムアウト処理
   ++control_lost_counter_;
+  bool timed_out = false;
   if (control_lost_counter_ > CB_RATE * CONTROL_LOST_TIMEOUT) {
     // 全入力をリセット
     game_data_input_ = attracts_msgs::msg::GameDataInput();
+    timed_out = true;
   }
-
-  // 情報を送信
-  game_data_input_pub_->publish(game_data_input_);
-  game_data_robot_pub_->publish(game_data_robot_);
 
   // シリアルデータ受信（バッファ末尾へ追記）
   if (buffer_index_ >= BUFFER_SIZE - 1) {
@@ -74,8 +72,20 @@ void TransceiverModuleBridge::TimerCB()
   }
 
   // バッファ内の完全なフレームをすべて処理
+  bool input_updated = false;
+  bool robot_updated = false;
   ProcessBuffer(
-    buffer_, buffer_index_, game_data_input_, game_data_robot_, control_lost_counter_);
+    buffer_, buffer_index_, game_data_input_, game_data_robot_, control_lost_counter_,
+    input_updated, robot_updated);
+
+  // フレーム受信時のみ送信（再送による多重積分を防ぐ）。
+  // タイムアウト時はゼロ化した入力を送り、確実に停止させる。
+  if (input_updated || timed_out) {
+    game_data_input_pub_->publish(game_data_input_);
+  }
+  if (robot_updated) {
+    game_data_robot_pub_->publish(game_data_robot_);
+  }
 }
 
 void TransceiverModuleBridge::DropOneByte(uint8_t * buffer, int & buffer_index)
@@ -90,8 +100,11 @@ void TransceiverModuleBridge::ProcessBuffer(
   uint8_t * buffer, int & buffer_index,
   attracts_msgs::msg::GameDataInput & game_data_input,
   attracts_msgs::msg::GameDataRobot & game_data_robot,
-  int & control_lost_counter)
+  int & control_lost_counter,
+  bool & input_updated, bool & robot_updated)
 {
+  input_updated = false;
+  robot_updated = false;
   while (buffer_index >= 7) {
     uint8_t start_of_frame = buffer[0];
     uint8_t command_type = buffer[1];
@@ -123,6 +136,11 @@ void TransceiverModuleBridge::ProcessBuffer(
     ProcessFrameData(
       command_type, buffer + 5, data_length,
       game_data_input, game_data_robot, control_lost_counter);
+    if (command_type == 0x00 && data_length == 9) {
+      input_updated = true;
+    } else if (command_type == 0x01 && data_length == 11) {
+      robot_updated = true;
+    }
 
     // 処理済みフレームをバッファから除去
     for (int i = 0; i < buffer_index - frame_size; ++i) {
