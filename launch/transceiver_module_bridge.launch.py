@@ -6,7 +6,7 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     transceiver_module_bridge_node = Node(
-        package='attracts_bridge',
+        package='rabbits_bridge',
         executable='transceiver_module_bridge_node',
         name='transceiver_module_bridge_node',
         output='screen',

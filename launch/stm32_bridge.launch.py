@@ -6,7 +6,7 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     stm32_bridge_node = Node(
-        package='attracts_bridge',
+        package='rabbits_bridge',
         executable='stm32_bridge_node',
         name='stm32_bridge_node',
         output='screen',

@@ -7,7 +7,7 @@ repositories:
     type: git
     url: https://github.com/rabbits-robotics/rabcl_ros2.git
     version: main
-  attracts_msgs:
+  rabbits_msgs:
     type: git
-    url: https://github.com/rabbits-robotics/attracts_msgs.git
+    url: https://github.com/rabbits-robotics/rabbits_msgs.git
     version: main

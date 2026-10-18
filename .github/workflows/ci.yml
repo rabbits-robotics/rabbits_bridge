@@ -26,11 +26,11 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          path: src/attracts_bridge
+          path: src/rabbits_bridge
 
       - name: Import dependency repositories
         shell: bash
-        run: vcs import src < src/attracts_bridge/.repos
+        run: vcs import src < src/rabbits_bridge/.repos
 
       - name: Install rosdeps
         shell: bash
@@ -42,13 +42,13 @@ jobs:
         shell: bash
         run: |
           source /opt/ros/jazzy/setup.bash
-          colcon build --packages-up-to attracts_bridge --event-handlers=console_cohesion+
+          colcon build --packages-up-to rabbits_bridge --event-handlers=console_cohesion+
 
       - name: colcon test
         shell: bash
         run: |
           source /opt/ros/jazzy/setup.bash
-          colcon test --packages-select attracts_bridge --event-handlers=console_direct+
+          colcon test --packages-select rabbits_bridge --event-handlers=console_direct+
           colcon test-result --verbose
 
       - name: Upload test logs on failure

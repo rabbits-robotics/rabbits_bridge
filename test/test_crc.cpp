@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "attracts_bridge/transceiver_module_bridge_node.hpp"
+#include "rabbits_bridge/transceiver_module_bridge_node.hpp"
 
 TEST(CRC8Test, KnownValue)
 {

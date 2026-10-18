@@ -1,4 +1,4 @@
-#include "attracts_bridge/stm32_bridge_node.hpp"
+#include "rabbits_bridge/stm32_bridge_node.hpp"
 
 #include <cerrno>
 #include <cstring>
@@ -17,7 +17,7 @@ Stm32Bridge::Stm32Bridge()
     rclcpp::shutdown();
   }
 
-  cmd_sub_ = this->create_subscription<attracts_msgs::msg::AttractsCommand>(
+  cmd_sub_ = this->create_subscription<rabbits_msgs::msg::AttractsCommand>(
     "cmd", 10,
     std::bind(&Stm32Bridge::CmdCB, this, std::placeholders::_1));
 
@@ -33,7 +33,7 @@ Stm32Bridge::Stm32Bridge()
 Stm32Bridge::Stm32Bridge(int test_fd)
 : Node("stm32_bridge_node"), fd1_(test_fd)
 {
-  cmd_sub_ = this->create_subscription<attracts_msgs::msg::AttractsCommand>(
+  cmd_sub_ = this->create_subscription<rabbits_msgs::msg::AttractsCommand>(
     "cmd", 10,
     std::bind(&Stm32Bridge::CmdCB, this, std::placeholders::_1));
 
@@ -81,7 +81,7 @@ int Stm32Bridge::OpenSerialPort(const std::string & device_name)
   return fd1;
 }
 
-void Stm32Bridge::CmdCB(const attracts_msgs::msg::AttractsCommand::SharedPtr msg)
+void Stm32Bridge::CmdCB(const rabbits_msgs::msg::AttractsCommand::SharedPtr msg)
 {
   rabcl::Info info;
   rabcl_ros2::Utils::CmdMsgToInfo(*msg, info);
@@ -162,7 +162,7 @@ void Stm32Bridge::ReadTimerCallback()
   }
 }
 
-#ifndef ATTRACTS_BRIDGE_EXCLUDE_MAIN
+#ifndef RABBITS_BRIDGE_EXCLUDE_MAIN
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);

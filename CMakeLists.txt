@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(attracts_bridge)
+project(rabbits_bridge)
 
 # Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
@@ -13,7 +13,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(attracts_msgs REQUIRED)
+find_package(rabbits_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rabcl REQUIRED)
 find_package(rabcl_ros2 REQUIRED)
@@ -26,7 +26,7 @@ add_executable(stm32_bridge_node
 )
 ament_target_dependencies(stm32_bridge_node
   rclcpp
-  attracts_msgs
+  rabbits_msgs
   sensor_msgs
   rabcl
   rabcl_ros2
@@ -37,7 +37,7 @@ add_executable(transceiver_module_bridge_node
 )
 ament_target_dependencies(transceiver_module_bridge_node
   rclcpp
-  attracts_msgs
+  rabbits_msgs
 )
 
 install(TARGETS
@@ -61,12 +61,12 @@ if(BUILD_TESTING)
 
   # Libraries for tests (main() excluded via preprocessor)
   add_library(stm32_bridge_lib STATIC src/stm32_bridge_node.cpp)
-  ament_target_dependencies(stm32_bridge_lib rclcpp attracts_msgs sensor_msgs rabcl rabcl_ros2)
-  target_compile_definitions(stm32_bridge_lib PRIVATE ATTRACTS_BRIDGE_EXCLUDE_MAIN)
+  ament_target_dependencies(stm32_bridge_lib rclcpp rabbits_msgs sensor_msgs rabcl rabcl_ros2)
+  target_compile_definitions(stm32_bridge_lib PRIVATE RABBITS_BRIDGE_EXCLUDE_MAIN)
 
   add_library(transceiver_module_bridge_lib STATIC src/transceiver_module_bridge_node.cpp)
-  ament_target_dependencies(transceiver_module_bridge_lib rclcpp attracts_msgs)
-  target_compile_definitions(transceiver_module_bridge_lib PRIVATE ATTRACTS_BRIDGE_EXCLUDE_MAIN)
+  ament_target_dependencies(transceiver_module_bridge_lib rclcpp rabbits_msgs)
+  target_compile_definitions(transceiver_module_bridge_lib PRIVATE RABBITS_BRIDGE_EXCLUDE_MAIN)
 
   ament_add_gtest(test_crc test/test_crc.cpp)
   target_link_libraries(test_crc transceiver_module_bridge_lib)

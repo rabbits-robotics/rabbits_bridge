@@ -12,25 +12,25 @@ def generate_launch_description():
 
     gamepad_interface_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('attracts_interface'), 'launch'),
+            get_package_share_directory('rabbits_interface'), 'launch'),
             '/gamepad.launch.py'])
     )
 
     # game_client_interface_launch = IncludeLaunchDescription(
     #     PythonLaunchDescriptionSource([os.path.join(
-    #         get_package_share_directory('attracts_interface'), 'launch'),
+    #         get_package_share_directory('rabbits_interface'), 'launch'),
     #         '/game_client.launch.py'])
     # )
 
     stm32_bridge_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('attracts_bridge'), 'launch'),
+            get_package_share_directory('rabbits_bridge'), 'launch'),
             '/stm32_bridge.launch.py'])
     )
 
     transceiver_module_bridge_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('attracts_bridge'), 'launch'),
+            get_package_share_directory('rabbits_bridge'), 'launch'),
             '/transceiver_module_bridge.launch.py'])
     )
 

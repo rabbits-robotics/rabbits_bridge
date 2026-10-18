@@ -1,5 +1,5 @@
-#ifndef ATTRACTS_BRIDGE__STM32_BRIDGE_NODE_HPP_
-#define ATTRACTS_BRIDGE__STM32_BRIDGE_NODE_HPP_
+#ifndef RABBITS_BRIDGE__STM32_BRIDGE_NODE_HPP_
+#define RABBITS_BRIDGE__STM32_BRIDGE_NODE_HPP_
 
 #include <fcntl.h>
 #include <termios.h>
@@ -9,7 +9,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 
-#include <attracts_msgs/msg/attracts_command.hpp>
+#include <rabbits_msgs/msg/attracts_command.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 
@@ -24,11 +24,11 @@ public:
 
 private:
   int OpenSerialPort(const std::string & device_name);
-  void CmdCB(const attracts_msgs::msg::AttractsCommand::SharedPtr msg);
+  void CmdCB(const rabbits_msgs::msg::AttractsCommand::SharedPtr msg);
   void SendSerialData(const uint8_t * buf);
   void ReadTimerCallback();
 
-  rclcpp::Subscription<attracts_msgs::msg::AttractsCommand>::SharedPtr cmd_sub_;
+  rclcpp::Subscription<rabbits_msgs::msg::AttractsCommand>::SharedPtr cmd_sub_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr act_joint_state_pub_;
   rclcpp::TimerBase::SharedPtr read_timer_;
@@ -43,4 +43,4 @@ private:
   int fb_rx_offset_ = 0;
 };
 
-#endif  // ATTRACTS_BRIDGE__STM32_BRIDGE_NODE_HPP_
+#endif  // RABBITS_BRIDGE__STM32_BRIDGE_NODE_HPP_

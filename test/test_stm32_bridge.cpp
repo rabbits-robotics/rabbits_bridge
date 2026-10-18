@@ -8,9 +8,9 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
-#include <attracts_msgs/msg/attracts_command.hpp>
+#include <rabbits_msgs/msg/attracts_command.hpp>
 
-#include "attracts_bridge/stm32_bridge_node.hpp"
+#include "rabbits_bridge/stm32_bridge_node.hpp"
 #include <rabcl/interface/uart.hpp>
 
 class Stm32BridgeTest : public ::testing::Test
@@ -149,9 +149,9 @@ TEST_F(Stm32BridgeTest, MultiplePacketsReceived)
 
 TEST_F(Stm32BridgeTest, CmdCBWritesReferencePacket)
 {
-  auto cmd_pub = node_->create_publisher<attracts_msgs::msg::AttractsCommand>("cmd", 10);
+  auto cmd_pub = node_->create_publisher<rabbits_msgs::msg::AttractsCommand>("cmd", 10);
 
-  auto msg = attracts_msgs::msg::AttractsCommand();
+  auto msg = rabbits_msgs::msg::AttractsCommand();
   msg.chassis_vel.x = 1.0;
   msg.yaw_pos = 2.0;
   msg.load_mode = 1;

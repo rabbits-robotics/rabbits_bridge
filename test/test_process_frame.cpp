@@ -2,22 +2,22 @@
 
 #include <vector>
 
-#include "attracts_bridge/transceiver_module_bridge_node.hpp"
+#include "rabbits_bridge/transceiver_module_bridge_node.hpp"
 
 // Helper to call ProcessFrameData with fresh output structs
-static attracts_msgs::msg::GameDataInput ProcessInput(uint8_t * data, uint16_t len)
+static rabbits_msgs::msg::GameDataInput ProcessInput(uint8_t * data, uint16_t len)
 {
-  attracts_msgs::msg::GameDataInput input;
-  attracts_msgs::msg::GameDataRobot robot;
+  rabbits_msgs::msg::GameDataInput input;
+  rabbits_msgs::msg::GameDataRobot robot;
   int counter = 42;
   TransceiverModuleBridge::ProcessFrameData(0x00, data, len, input, robot, counter);
   return input;
 }
 
-static attracts_msgs::msg::GameDataRobot ProcessRobot(uint8_t * data, uint16_t len)
+static rabbits_msgs::msg::GameDataRobot ProcessRobot(uint8_t * data, uint16_t len)
 {
-  attracts_msgs::msg::GameDataInput input;
-  attracts_msgs::msg::GameDataRobot robot;
+  rabbits_msgs::msg::GameDataInput input;
+  rabbits_msgs::msg::GameDataRobot robot;
   int counter = 0;
   TransceiverModuleBridge::ProcessFrameData(0x01, data, len, input, robot, counter);
   return robot;
@@ -111,8 +111,8 @@ TEST(ProcessFrameDataTest, InputKeyboard4)
 TEST(ProcessFrameDataTest, InputResetsControlLostCounter)
 {
   uint8_t data[9] = {};
-  attracts_msgs::msg::GameDataInput input;
-  attracts_msgs::msg::GameDataRobot robot;
+  rabbits_msgs::msg::GameDataInput input;
+  rabbits_msgs::msg::GameDataRobot robot;
   int counter = 999;
   TransceiverModuleBridge::ProcessFrameData(0x00, data, 9, input, robot, counter);
   EXPECT_EQ(0, counter);
@@ -122,8 +122,8 @@ TEST(ProcessFrameDataTest, InputWrongLengthSkipped)
 {
   uint8_t data[9] = {0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF};
   int counter = 42;
-  attracts_msgs::msg::GameDataInput input;
-  attracts_msgs::msg::GameDataRobot robot;
+  rabbits_msgs::msg::GameDataInput input;
+  rabbits_msgs::msg::GameDataRobot robot;
   TransceiverModuleBridge::ProcessFrameData(0x00, data, 8, input, robot, counter);
   // data_length != 9 so not processed — counter unchanged
   EXPECT_EQ(42, counter);
@@ -158,8 +158,8 @@ TEST(ProcessFrameDataTest, RobotDataWrongLengthSkipped)
 TEST(ProcessFrameDataTest, UnknownCommandTypeNoOp)
 {
   uint8_t data[1] = {0x00};
-  attracts_msgs::msg::GameDataInput input;
-  attracts_msgs::msg::GameDataRobot robot;
+  rabbits_msgs::msg::GameDataInput input;
+  rabbits_msgs::msg::GameDataRobot robot;
   int counter = 7;
   TransceiverModuleBridge::ProcessFrameData(0xFF, data, 1, input, robot, counter);
   EXPECT_EQ(7, counter);  // unchanged
@@ -204,8 +204,8 @@ TEST(ProcessBufferTest, SingleValidInputFrameConsumed)
   uint8_t buffer[1500];
   std::copy(frame.begin(), frame.end(), buffer);
 
-  attracts_msgs::msg::GameDataInput input;
-  attracts_msgs::msg::GameDataRobot robot;
+  rabbits_msgs::msg::GameDataInput input;
+  rabbits_msgs::msg::GameDataRobot robot;
   int counter = 999;
   bool input_updated = false;
   bool robot_updated = false;
@@ -234,8 +234,8 @@ TEST(ProcessBufferTest, TwoConcatenatedFramesBothConsumed)
   uint8_t buffer[1500];
   std::copy(bytes.begin(), bytes.end(), buffer);
 
-  attracts_msgs::msg::GameDataInput input;
-  attracts_msgs::msg::GameDataRobot robot;
+  rabbits_msgs::msg::GameDataInput input;
+  rabbits_msgs::msg::GameDataRobot robot;
   int counter = 0;
   bool input_updated = false;
   bool robot_updated = false;
@@ -259,8 +259,8 @@ TEST(ProcessBufferTest, PartialFrameRetained)
   uint8_t buffer[1500];
   std::copy(frame.begin(), frame.begin() + partial, buffer);
 
-  attracts_msgs::msg::GameDataInput input;
-  attracts_msgs::msg::GameDataRobot robot;
+  rabbits_msgs::msg::GameDataInput input;
+  rabbits_msgs::msg::GameDataRobot robot;
   int counter = 5;
   bool input_updated = false;
   bool robot_updated = false;
@@ -283,8 +283,8 @@ TEST(ProcessBufferTest, LeadingGarbageResyncs)
   uint8_t buffer[1500];
   std::copy(bytes.begin(), bytes.end(), buffer);
 
-  attracts_msgs::msg::GameDataInput input;
-  attracts_msgs::msg::GameDataRobot robot;
+  rabbits_msgs::msg::GameDataInput input;
+  rabbits_msgs::msg::GameDataRobot robot;
   int counter = 999;
   bool input_updated = false;
   bool robot_updated = false;
@@ -305,8 +305,8 @@ TEST(ProcessBufferTest, BadCrc16FrameDropped)
   uint8_t buffer[1500];
   std::copy(frame.begin(), frame.end(), buffer);
 
-  attracts_msgs::msg::GameDataInput input;
-  attracts_msgs::msg::GameDataRobot robot;
+  rabbits_msgs::msg::GameDataInput input;
+  rabbits_msgs::msg::GameDataRobot robot;
   int counter = 5;
   bool input_updated = false;
   bool robot_updated = false;

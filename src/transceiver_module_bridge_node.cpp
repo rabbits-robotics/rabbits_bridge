@@ -1,4 +1,4 @@
-#include "attracts_bridge/transceiver_module_bridge_node.hpp"
+#include "rabbits_bridge/transceiver_module_bridge_node.hpp"
 
 #include <functional>
 
@@ -13,9 +13,9 @@ TransceiverModuleBridge::TransceiverModuleBridge()
   }
 
   game_data_input_pub_ =
-    this->create_publisher<attracts_msgs::msg::GameDataInput>("game_data_input", 10);
+    this->create_publisher<rabbits_msgs::msg::GameDataInput>("game_data_input", 10);
   game_data_robot_pub_ =
-    this->create_publisher<attracts_msgs::msg::GameDataRobot>("game_data_robot", 10);
+    this->create_publisher<rabbits_msgs::msg::GameDataRobot>("game_data_robot", 10);
   timer_ = this->create_wall_timer(
     std::chrono::duration<double>(1.0 / CB_RATE),
     std::bind(&TransceiverModuleBridge::TimerCB, this));
@@ -57,7 +57,7 @@ void TransceiverModuleBridge::TimerCB()
   bool timed_out = false;
   if (control_lost_counter_ > CB_RATE * CONTROL_LOST_TIMEOUT) {
     // 全入力をリセット
-    game_data_input_ = attracts_msgs::msg::GameDataInput();
+    game_data_input_ = rabbits_msgs::msg::GameDataInput();
     timed_out = true;
   }
 
@@ -98,8 +98,8 @@ void TransceiverModuleBridge::DropOneByte(uint8_t * buffer, int & buffer_index)
 
 void TransceiverModuleBridge::ProcessBuffer(
   uint8_t * buffer, int & buffer_index,
-  attracts_msgs::msg::GameDataInput & game_data_input,
-  attracts_msgs::msg::GameDataRobot & game_data_robot,
+  rabbits_msgs::msg::GameDataInput & game_data_input,
+  rabbits_msgs::msg::GameDataRobot & game_data_robot,
   int & control_lost_counter,
   bool & input_updated, bool & robot_updated)
 {
@@ -184,8 +184,8 @@ uint16_t TransceiverModuleBridge::CalculateCRC16(const uint8_t * data, size_t le
 
 void TransceiverModuleBridge::ProcessFrameData(
   uint8_t command_type, uint8_t * data, uint16_t data_length,
-  attracts_msgs::msg::GameDataInput & game_data_input,
-  attracts_msgs::msg::GameDataRobot & game_data_robot,
+  rabbits_msgs::msg::GameDataInput & game_data_input,
+  rabbits_msgs::msg::GameDataRobot & game_data_robot,
   int & control_lost_counter)
 {
   if (command_type == 0x00 && data_length == 9) {
@@ -269,7 +269,7 @@ void TransceiverModuleBridge::ProcessFrameData(
   }
 }
 
-#ifndef ATTRACTS_BRIDGE_EXCLUDE_MAIN
+#ifndef RABBITS_BRIDGE_EXCLUDE_MAIN
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
