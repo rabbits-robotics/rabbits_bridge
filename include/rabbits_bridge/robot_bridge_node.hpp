@@ -31,7 +31,10 @@ private:
   int OpenSerialPort(const std::string & device, int baud);
   void ReadTimerCallback();
   void ReferenceCallback(const rabbits_msgs::msg::ReferenceCommand::SharedPtr msg);
+  // フレームを送信待ちに積み、書けるだけ書く（ブロックしない）
   void WriteFrame(const uint8_t * buf, size_t len);
+  // 送信待ちを書けるだけ書く。EAGAIN なら残して次回に回す
+  void FlushTx();
   static void OnFrameStatic(
     rabcl::protocol::Type type, const uint8_t * payload, uint8_t len, void * ctx);
   void OnFrame(rabcl::protocol::Type type, const uint8_t * payload, uint8_t len);
@@ -45,6 +48,8 @@ private:
   std::vector<std::string> modes_;
   int fd_ = -1;
   rabcl::protocol::Parser parser_;
+  std::vector<uint8_t> tx_pending_;  // まだ書けていない送信バイト列
+  static constexpr size_t TX_PENDING_MAX = 64 * 1024;  // これを超えたら古い分を捨てる
   bool version_error_logged_ = false;
   bool joint_count_warned_ = false;
   bool unknown_joint_warned_ = false;

@@ -102,10 +102,18 @@ int RobotBridge::OpenSerialPort(const std::string & device, int baud)
 
 void RobotBridge::ReadTimerCallback()
 {
+  FlushTx();
   uint8_t buf[512];
   while (true) {
     const ssize_t n = read(fd_, buf, sizeof(buf));
-    if (n <= 0) {
+    if (n < 0) {
+      if (errno != EAGAIN && errno != EWOULDBLOCK) {
+        RCLCPP_ERROR_THROTTLE(
+          this->get_logger(), *this->get_clock(), 1000, "read failed: %s", strerror(errno));
+      }
+      return;
+    }
+    if (n == 0) {
       return;
     }
     parser_.Feed(buf, static_cast<size_t>(n), &RobotBridge::OnFrameStatic, this);
@@ -214,16 +222,33 @@ void RobotBridge::WriteFrame(const uint8_t * buf, size_t len)
   if (len == 0) {
     return;
   }
-  const ssize_t n = write(fd_, buf, len);
-  if (n < 0) {
-    RCLCPP_ERROR_THROTTLE(
-      this->get_logger(), *this->get_clock(), 1000, "write failed: %s", strerror(errno));
-  } else if (static_cast<size_t>(n) != len) {
+  if (tx_pending_.size() + len > TX_PENDING_MAX) {
     RCLCPP_WARN_THROTTLE(
-      this->get_logger(), *this->get_clock(), 1000, "only %zd of %zu bytes written", n, len);
-  } else if (isatty(fd_)) {
-    tcdrain(fd_);
+      this->get_logger(), *this->get_clock(), 1000,
+      "tx backlog over %zu bytes, dropping old frames (is the firmware reading?)", TX_PENDING_MAX);
+    tx_pending_.clear();
   }
+  tx_pending_.insert(tx_pending_.end(), buf, buf + len);
+  FlushTx();
+}
+
+void RobotBridge::FlushTx()
+{
+  size_t written = 0;
+  while (written < tx_pending_.size()) {
+    const ssize_t n = write(fd_, tx_pending_.data() + written, tx_pending_.size() - written);
+    if (n < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        break;  // 送信バッファが一杯。残りは次の機会に
+      }
+      RCLCPP_ERROR_THROTTLE(
+        this->get_logger(), *this->get_clock(), 1000, "write failed: %s", strerror(errno));
+      tx_pending_.clear();
+      return;
+    }
+    written += static_cast<size_t>(n);
+  }
+  tx_pending_.erase(tx_pending_.begin(), tx_pending_.begin() + static_cast<long>(written));
 }
 
 #ifndef RABBITS_BRIDGE_EXCLUDE_MAIN

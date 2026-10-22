@@ -58,8 +58,10 @@ protected:
     WriteBytes(buf, n);
   }
 
-  // bridge が書いたバイト列をフレームに分けて返す
-  std::vector<std::pair<proto::Type, std::vector<uint8_t>>> ReadFrames()
+  using Frames = std::vector<std::pair<proto::Type, std::vector<uint8_t>>>;
+
+  // bridge が書いて今読めるバイト列
+  std::vector<uint8_t> ReadAvailable()
   {
     std::vector<uint8_t> bytes;
     uint8_t tmp[512];
@@ -68,16 +70,24 @@ protected:
       if (n <= 0) {break;}
       bytes.insert(bytes.end(), tmp, tmp + n);
     }
-    std::vector<std::pair<proto::Type, std::vector<uint8_t>>> frames;
+    return bytes;
+  }
+
+  static Frames ParseFrames(const std::vector<uint8_t> & bytes)
+  {
+    Frames frames;
     proto::Parser parser;
     parser.Feed(
       bytes.data(), bytes.size(),
       [](proto::Type type, const uint8_t * payload, uint8_t len, void * ctx) {
-        auto * out = static_cast<std::vector<std::pair<proto::Type, std::vector<uint8_t>>> *>(ctx);
-        out->emplace_back(type, std::vector<uint8_t>(payload, payload + len));
+        static_cast<Frames *>(ctx)->emplace_back(
+          type, std::vector<uint8_t>(payload, payload + len));
       }, &frames);
     return frames;
   }
+
+  // bridge が書いたバイト列をフレームに分けて返す
+  Frames ReadFrames() {return ParseFrames(ReadAvailable());}
 
   void SpinFor(int ms)
   {
@@ -266,6 +276,49 @@ TEST_F(RobotBridgeTest, EmptyArraysSendOnlyChassisVel)
   const auto frames = ReadFrames();
   ASSERT_EQ(frames.size(), 1u);
   EXPECT_EQ(frames[0].first, proto::Type::CHASSIS_VEL);
+}
+
+TEST_F(RobotBridgeTest, BackpressureKeepsEveryFrame)
+{
+  // ソケットの送信バッファを最小にして、読み出さないまま 200 回指令を出す。
+  // write が EAGAIN になっても bridge がフレームを捨てず、あとで読み出せば全部届く
+  int small = 1;
+  ASSERT_EQ(setsockopt(fd_[0], SOL_SOCKET, SO_SNDBUF, &small, sizeof(small)), 0);
+  ASSERT_EQ(setsockopt(fd_[1], SOL_SOCKET, SO_RCVBUF, &small, sizeof(small)), 0);
+
+  auto pub = node_->create_publisher<rabbits_msgs::msg::ReferenceCommand>("reference_command", 10);
+  constexpr int N = 200;
+  for (int i = 0; i < N; ++i) {
+    auto msg = MakeReference(static_cast<double>(i));
+    msg.joint_name = {"j0"};
+    msg.joint_position = {static_cast<float>(i)};
+    msg.joint_velocity = {0.0f};
+    msg.joint_effort = {0.0f};
+    msg.joint_kp = {0.0f};
+    msg.joint_kd = {0.0f};
+    pub->publish(msg);
+    SpinFor(2);
+  }
+
+  // 読み出しながら spin して、溜まった分を bridge に流させる。バイト列は溜めて最後に解析する
+  std::vector<uint8_t> bytes;
+  const size_t expected_bytes = static_cast<size_t>(N) * (17 + 5 + 1 + 21);  // CHASSIS_VEL + JOINT_CMD
+  const auto start = std::chrono::steady_clock::now();
+  while (std::chrono::steady_clock::now() - start < std::chrono::milliseconds(1500)) {
+    const auto chunk = ReadAvailable();
+    bytes.insert(bytes.end(), chunk.begin(), chunk.end());
+    if (bytes.size() >= expected_bytes) {break;}
+    rclcpp::spin_some(node_);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  const auto frames = ParseFrames(bytes);
+  ASSERT_EQ(frames.size(), static_cast<size_t>(2 * N));
+  // 順番も保たれる: 最後の CHASSIS_VEL の vx が N-1
+  proto::ChassisVel vel = {};
+  ASSERT_EQ(frames[2 * N - 2].first, proto::Type::CHASSIS_VEL);
+  ASSERT_TRUE(
+    proto::DecodeChassisVel(frames[2 * N - 2].second.data(), frames[2 * N - 2].second.size(), vel));
+  EXPECT_FLOAT_EQ(vel.vx, static_cast<float>(N - 1));
 }
 
 TEST_F(RobotBridgeTest, MismatchedReferenceIsDropped)

@@ -7,7 +7,7 @@ PC（ROS 2）と機体のファームをつなぐノード。
 | ノード | 役割 |
 |---|---|
 | `robot_bridge_node` | [rabcl](https://github.com/rabbits-robotics/rabcl) の共通プロトコル（`rabcl::protocol`）でファームとシリアル通信する。機体に依らず、違いはパラメータ YAML だけ |
-| `stm32_bridge_node` | beta 用の旧プロトコル（固定長パケット）。beta を共通プロトコルに移行したあと削除する |
+| `stm32_bridge_node` | beta 用の旧プロトコル（固定長パケット）。`cmd`（`rabbits_msgs/AttractsCommand`）を購読するが、今の gamepad / game_client は `reference_command` しか出さないので、beta は実機に入っている旧コミットの構成で動かす。beta を共通プロトコルに移行したあと削除する |
 | `transceiver_module_bridge_node` | ゲーム用の無線モジュール |
 
 ## robot_bridge
