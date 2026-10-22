@@ -1,0 +1,20 @@
+# beta: beta_main（STM32）を共通プロトコルに移行したあとに使う
+robot_bridge:
+  ros__parameters:
+    device: /dev/ttyACM0
+    baud: 230400
+    # 関節番号順（ファームの robot.hpp と同じ並び）。名前は URDF（rabbits_description）の関節名
+    joints:
+      - yaw_joint
+      - pitch_joint
+      - right_front_wheel_joint
+      - left_front_wheel_joint
+      - right_back_wheel_joint
+      - left_back_wheel_joint
+    # effort の単位（参考）: yaw = A（LK モータの電流）、他 = Nm
+    # モード番号順
+    modes:
+      - load
+      - fire
+      - speed
+      - chassis

@@ -40,14 +40,27 @@ ament_target_dependencies(transceiver_module_bridge_node
   rabbits_msgs
 )
 
+add_executable(robot_bridge_node
+  src/robot_bridge_node.cpp
+)
+ament_target_dependencies(robot_bridge_node
+  rclcpp
+  rabbits_msgs
+  sensor_msgs
+  rabcl
+  rabcl_ros2
+)
+
 install(TARGETS
   stm32_bridge_node
   transceiver_module_bridge_node
+  robot_bridge_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(DIRECTORY
   launch
+  config
   DESTINATION share/${PROJECT_NAME}
 )
 
@@ -77,6 +90,14 @@ if(BUILD_TESTING)
   ament_add_gtest(test_stm32_bridge test/test_stm32_bridge.cpp)
   target_link_libraries(test_stm32_bridge stm32_bridge_lib)
   target_include_directories(stm32_bridge_lib PUBLIC include)
+
+  add_library(robot_bridge_lib STATIC src/robot_bridge_node.cpp)
+  ament_target_dependencies(robot_bridge_lib rclcpp rabbits_msgs sensor_msgs rabcl rabcl_ros2)
+  target_compile_definitions(robot_bridge_lib PRIVATE RABBITS_BRIDGE_EXCLUDE_MAIN)
+  target_include_directories(robot_bridge_lib PUBLIC include)
+
+  ament_add_gtest(test_robot_bridge test/test_robot_bridge.cpp)
+  target_link_libraries(test_robot_bridge robot_bridge_lib)
 endif()
 
 ament_package()

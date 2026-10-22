@@ -1,0 +1,26 @@
+# gamma: gamma_turret_fw（ESP32-P4）。Jetson の UART に接続
+robot_bridge:
+  ros__parameters:
+    device: /dev/ttyTHS1
+    baud: 921600
+    # 関節番号順（gamma_turret_fw の src/robot.hpp と同じ並び）。名前は URDF の関節名
+    # （roll と脚は URDF 追加時に同じ名前を使う）
+    joints:
+      - yaw_joint
+      - pitch_joint
+      - roll_joint
+      - right_front_wheel_joint
+      - left_front_wheel_joint
+      - right_back_wheel_joint
+      - left_back_wheel_joint
+      - right_front_leg_joint
+      - left_front_leg_joint
+      - right_back_leg_joint
+      - left_back_leg_joint
+    # effort の単位（参考）: yaw = A（LK モータの電流）、他 = Nm
+    # モード番号順
+    modes:
+      - load
+      - fire
+      - speed
+      - chassis
