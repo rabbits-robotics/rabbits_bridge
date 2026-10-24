@@ -12,6 +12,7 @@
 #include <rabbits_msgs/msg/reference_command.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
+#include <std_msgs/msg/empty.hpp>
 #include <rabcl/protocol/parser.hpp>
 #include <rabcl/protocol/protocol.hpp>
 
@@ -146,7 +147,7 @@ TEST_F(RobotBridgeTest, ImuFramePublishesImu)
   EXPECT_EQ(received->header.frame_id, "imu_link");
 }
 
-TEST_F(RobotBridgeTest, SystemFrameIsIgnored)
+TEST_F(RobotBridgeTest, SystemFrameDoesNotPublishJointOrImu)
 {
   int count = 0;
   auto js_sub = node_->create_subscription<sensor_msgs::msg::JointState>(
@@ -243,39 +244,84 @@ TEST_F(RobotBridgeTest, ReferenceCommandWritesFrames)
   SpinFor(50);
 
   const auto frames = ReadFrames();
-  ASSERT_EQ(frames.size(), 3u);
+  ASSERT_EQ(frames.size(), 4u);
   EXPECT_EQ(frames[0].first, proto::Type::CHASSIS_VEL);
   proto::ChassisVel vel = {};
   ASSERT_TRUE(proto::DecodeChassisVel(frames[0].second.data(), frames[0].second.size(), vel));
   EXPECT_FLOAT_EQ(vel.vx, 1.0f);
 
-  EXPECT_EQ(frames[1].first, proto::Type::JOINT_CMD);
+  EXPECT_EQ(frames[1].first, proto::Type::BODY_POSE);
+
+  EXPECT_EQ(frames[2].first, proto::Type::JOINT_CMD);
   proto::JointCmd cmds[4];
   uint8_t count = 0;
   ASSERT_TRUE(
-    proto::DecodeJointCmd(frames[1].second.data(), frames[1].second.size(), cmds, 4, count));
+    proto::DecodeJointCmd(frames[2].second.data(), frames[2].second.size(), cmds, 4, count));
   ASSERT_EQ(count, 1);
   EXPECT_EQ(cmds[0].id, 1);
   EXPECT_FLOAT_EQ(cmds[0].position, 0.5f);
   EXPECT_FLOAT_EQ(cmds[0].kp, 2.0f);
 
-  EXPECT_EQ(frames[2].first, proto::Type::MODE);
+  EXPECT_EQ(frames[3].first, proto::Type::MODE);
   proto::ModeCmd modes[4];
-  ASSERT_TRUE(proto::DecodeMode(frames[2].second.data(), frames[2].second.size(), modes, 4, count));
+  ASSERT_TRUE(proto::DecodeMode(frames[3].second.data(), frames[3].second.size(), modes, 4, count));
   ASSERT_EQ(count, 1);
   EXPECT_EQ(modes[0].id, 1);
   EXPECT_EQ(modes[0].value, 2);
 }
 
-TEST_F(RobotBridgeTest, EmptyArraysSendOnlyChassisVel)
+TEST_F(RobotBridgeTest, EmptyArraysSendChassisVelAndBodyPose)
 {
   auto pub = node_->create_publisher<rabbits_msgs::msg::ReferenceCommand>("reference_command", 10);
   pub->publish(MakeReference(0.25));
   SpinFor(50);
 
   const auto frames = ReadFrames();
-  ASSERT_EQ(frames.size(), 1u);
+  ASSERT_EQ(frames.size(), 2u);
   EXPECT_EQ(frames[0].first, proto::Type::CHASSIS_VEL);
+  EXPECT_EQ(frames[1].first, proto::Type::BODY_POSE);
+}
+
+TEST_F(RobotBridgeTest, ReferenceCommandWritesBodyPose)
+{
+  auto pub = node_->create_publisher<rabbits_msgs::msg::ReferenceCommand>("reference_command", 10);
+  auto msg = MakeReference(0.0);
+  msg.body_height = 0.5;
+  msg.body_roll = 0.1;
+  msg.body_pitch = -0.2;
+  pub->publish(msg);
+  SpinFor(50);
+
+  const auto frames = ReadFrames();
+  ASSERT_EQ(frames.size(), 2u);
+  ASSERT_EQ(frames[1].first, proto::Type::BODY_POSE);
+  proto::BodyPose pose = {};
+  ASSERT_TRUE(proto::DecodeBodyPose(frames[1].second.data(), frames[1].second.size(), pose));
+  EXPECT_FLOAT_EQ(pose.height, 0.5f);
+  EXPECT_FLOAT_EQ(pose.roll, 0.1f);
+  EXPECT_FLOAT_EQ(pose.pitch, -0.2f);
+}
+
+TEST_F(RobotBridgeTest, RebootIsDetectedFromUptime)
+{
+  int count = 0;
+  auto sub = node_->create_subscription<std_msgs::msg::Empty>(
+    "firmware_reboot", 10, [&](std_msgs::msg::Empty::SharedPtr) {count++;});
+
+  auto write_system = [&](uint32_t uptime_ms) {
+      proto::System system = {24.0f, 0, uptime_ms};
+      uint8_t buf[proto::MAX_FRAME];
+      const size_t n = proto::EncodeSystem(system, buf, sizeof(buf));
+      WriteBytes(buf, n);
+      SpinFor(50);
+    };
+
+  write_system(5000);  // bridge 起動後の初回 → 1 回
+  EXPECT_EQ(count, 1);
+  write_system(6000);  // 増えている → 出ない
+  EXPECT_EQ(count, 1);
+  write_system(1000);  // 減った = 再起動 → 1 回
+  EXPECT_EQ(count, 2);
 }
 
 TEST_F(RobotBridgeTest, BackpressureKeepsEveryFrame)
@@ -302,7 +348,7 @@ TEST_F(RobotBridgeTest, BackpressureKeepsEveryFrame)
 
   // 読み出しながら spin して、溜まった分を bridge に流させる。バイト列は溜めて最後に解析する
   std::vector<uint8_t> bytes;
-  const size_t expected_bytes = static_cast<size_t>(N) * (17 + 5 + 1 + 21);  // CHASSIS_VEL + JOINT_CMD
+  const size_t expected_bytes = static_cast<size_t>(N) * (17 + 17 + 5 + 1 + 21);  // CHASSIS_VEL + BODY_POSE + JOINT_CMD
   const auto start = std::chrono::steady_clock::now();
   while (std::chrono::steady_clock::now() - start < std::chrono::milliseconds(1500)) {
     const auto chunk = ReadAvailable();
@@ -312,12 +358,12 @@ TEST_F(RobotBridgeTest, BackpressureKeepsEveryFrame)
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
   const auto frames = ParseFrames(bytes);
-  ASSERT_EQ(frames.size(), static_cast<size_t>(2 * N));
+  ASSERT_EQ(frames.size(), static_cast<size_t>(3 * N));
   // 順番も保たれる: 最後の CHASSIS_VEL の vx が N-1
   proto::ChassisVel vel = {};
-  ASSERT_EQ(frames[2 * N - 2].first, proto::Type::CHASSIS_VEL);
+  ASSERT_EQ(frames[3 * N - 3].first, proto::Type::CHASSIS_VEL);
   ASSERT_TRUE(
-    proto::DecodeChassisVel(frames[2 * N - 2].second.data(), frames[2 * N - 2].second.size(), vel));
+    proto::DecodeChassisVel(frames[3 * N - 3].second.data(), frames[3 * N - 3].second.size(), vel));
   EXPECT_FLOAT_EQ(vel.vx, static_cast<float>(N - 1));
 }
 

@@ -12,9 +12,10 @@ robot_bridge:
       - right_back_wheel_joint
       - left_back_wheel_joint
     # effort の単位（参考）: yaw = A（LK モータの電流）、他 = Nm
-    # モード番号順
+    # モード番号順（stabilize は gamma 用。beta のファームは無視する）
     modes:
       - load
       - fire
       - speed
       - chassis
+      - stabilize

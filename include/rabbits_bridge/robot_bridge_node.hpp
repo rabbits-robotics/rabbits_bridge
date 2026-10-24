@@ -1,6 +1,8 @@
 // robot_bridge: rabcl の共通プロトコル（rabcl::protocol）でファームとシリアル通信する汎用ノード。
 // 機体の違いはパラメータ（device / baud / joints / modes）だけ。関節名は URDF と同じにする。
-//   出力: joint_states (sensor_msgs/JointState), imu/data (sensor_msgs/Imu)
+//   出力: joint_states (sensor_msgs/JointState), imu/data (sensor_msgs/Imu),
+//         firmware_reboot (std_msgs/Empty。SYSTEM の uptime が減った = ファーム再起動を検出したとき、
+//         および bridge 起動後に初めて SYSTEM を受けたときに 1 回)
 //   入力: reference_command (rabbits_msgs/ReferenceCommand)
 #ifndef RABBITS_BRIDGE__ROBOT_BRIDGE_NODE_HPP_
 #define RABBITS_BRIDGE__ROBOT_BRIDGE_NODE_HPP_
@@ -14,6 +16,7 @@
 #include <rabbits_msgs/msg/reference_command.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
+#include <std_msgs/msg/empty.hpp>
 
 #include <rabcl/protocol/parser.hpp>
 #include <rabcl/protocol/protocol.hpp>
@@ -42,6 +45,7 @@ private:
   rclcpp::Subscription<rabbits_msgs::msg::ReferenceCommand>::SharedPtr reference_sub_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub_;
+  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reboot_pub_;
   rclcpp::TimerBase::SharedPtr read_timer_;
 
   std::vector<std::string> joints_;
@@ -50,6 +54,8 @@ private:
   rabcl::protocol::Parser parser_;
   std::vector<uint8_t> tx_pending_;  // まだ書けていない送信バイト列
   static constexpr size_t TX_PENDING_MAX = 64 * 1024;  // これを超えたら古い分を捨てる
+  bool uptime_seen_ = false;
+  uint32_t last_uptime_ms_ = 0;
   bool version_error_logged_ = false;
   bool joint_count_warned_ = false;
   bool unknown_joint_warned_ = false;

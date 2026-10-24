@@ -15,6 +15,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rabbits_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(rabcl REQUIRED)
 find_package(rabcl_ros2 REQUIRED)
 
@@ -47,6 +48,7 @@ ament_target_dependencies(robot_bridge_node
   rclcpp
   rabbits_msgs
   sensor_msgs
+  std_msgs
   rabcl
   rabcl_ros2
 )
@@ -92,7 +94,7 @@ if(BUILD_TESTING)
   target_include_directories(stm32_bridge_lib PUBLIC include)
 
   add_library(robot_bridge_lib STATIC src/robot_bridge_node.cpp)
-  ament_target_dependencies(robot_bridge_lib rclcpp rabbits_msgs sensor_msgs rabcl rabcl_ros2)
+  ament_target_dependencies(robot_bridge_lib rclcpp rabbits_msgs sensor_msgs std_msgs rabcl rabcl_ros2)
   target_compile_definitions(robot_bridge_lib PRIVATE RABBITS_BRIDGE_EXCLUDE_MAIN)
   target_include_directories(robot_bridge_lib PUBLIC include)
 

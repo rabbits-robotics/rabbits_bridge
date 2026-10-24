@@ -16,6 +16,7 @@ PC（ROS 2）と機体のファームをつなぐノード。
 |---|---|---|
 | 出力 | `joint_states` | `sensor_msgs/JointState`（名前は YAML の `joints`） |
 | 出力 | `imu/data` | `sensor_msgs/Imu`（frame_id `imu_link`） |
+| 出力 | `firmware_reboot` | `std_msgs/Empty`。ファームの再起動を検出したとき 1 回（下記） |
 | 入力 | `reference_command` | `rabbits_msgs/ReferenceCommand` |
 
 パラメータ（`config/<機体>.yaml`）:
@@ -25,14 +26,15 @@ PC（ROS 2）と機体のファームをつなぐノード。
 | `device` | シリアルデバイス（例 `/dev/ttyACM0`、Jetson の UART は `/dev/ttyTHS1`） |
 | `baud` | 115200 / 230400 / 460800 / 921600 / 1000000 / 2000000 |
 | `joints` | 関節番号順の関節名。ファームの `robot.hpp` と同じ並びにし、名前は URDF と同じにする |
-| `modes` | モード番号順のモード名 |
+| `modes` | モード番号順のモード名（gamma: `load`, `fire`, `speed`, `chassis`, `stabilize`） |
 
 ```bash
 ros2 launch rabbits_bridge robot_bridge.launch.py config:=$(ros2 pkg prefix rabbits_bridge)/share/rabbits_bridge/config/gamma.yaml
 ```
 
 - ファームの `INFO` でプロトコル版数が違えばエラーログ、関節数が YAML と違えば警告を 1 回出す。
-- `ReferenceCommand` は配列長が揃っていなければ捨てて警告する。`chassis_vel` は常に送り、関節とモードは配列が空なら送らない。
+- `ReferenceCommand` は配列長が揃っていなければ捨てて警告する。`CHASSIS_VEL` → `BODY_POSE`（車高・ロール・ピッチ。常に送る）→ `JOINT_CMD` → `MODE` の順に書き、関節とモードは配列が空なら送らない。
+- ファームの `SYSTEM` の `uptime_ms` を見て、前回より小さければ再起動（HP 0 の電源断からの復電など）とみなし `firmware_reboot` を 1 回出す。bridge 起動後に初めて `SYSTEM` を受けたときも 1 回出す（ファームが先に起動していた場合に PC 側の基準を合わせるため）。PC 側（`rabbits_interface`）はこれで視点目標などの基準をリセットする。
 
 ## テスト
 

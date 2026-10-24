@@ -18,9 +18,10 @@ robot_bridge:
       - right_back_leg_joint
       - left_back_leg_joint
     # effort の単位（参考）: yaw = A（LK モータの電流）、他 = Nm
-    # モード番号順
+    # モード番号順（gamma_turret_fw の src/robot.hpp と同じ並び。stabilize: 1 = 首の安定化あり）
     modes:
       - load
       - fire
       - speed
       - chassis
+      - stabilize
