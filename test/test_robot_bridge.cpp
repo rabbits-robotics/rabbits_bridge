@@ -59,6 +59,15 @@ protected:
     WriteBytes(buf, n);
   }
 
+  void WriteMotorCommand(const std::vector<proto::MotorCommand> & cmds)
+  {
+    uint8_t buf[proto::MAX_FRAME];
+    const size_t n = proto::EncodeMotorCommand(
+      cmds.data(), static_cast<uint8_t>(cmds.size()), buf, sizeof(buf));
+    ASSERT_GT(n, 0u);
+    WriteBytes(buf, n);
+  }
+
   using Frames = std::vector<std::pair<proto::Type, std::vector<uint8_t>>>;
 
   // bridge が書いて今読めるバイト列
@@ -126,6 +135,36 @@ TEST_F(RobotBridgeTest, JointStateFramePublishesJointStates)
   EXPECT_DOUBLE_EQ(received->position[0], 1.0);
   EXPECT_DOUBLE_EQ(received->velocity[1], -2.0);
   EXPECT_DOUBLE_EQ(received->effort[1], -3.0);
+}
+
+TEST_F(RobotBridgeTest, MotorCommandFramePublishesMotorCommands)
+{
+  sensor_msgs::msg::JointState::SharedPtr received;
+  auto sub = node_->create_subscription<sensor_msgs::msg::JointState>(
+    "motor_commands", 10, [&](sensor_msgs::msg::JointState::SharedPtr msg) {received = msg;});
+
+  WriteMotorCommand({{0, 1.0f, 0.0f, 0.5f}, {2, 0.0f, -2.0f, 0.0f}});
+  SpinFor(50);
+
+  ASSERT_NE(received, nullptr);
+  ASSERT_EQ(received->name.size(), 2u);
+  EXPECT_EQ(received->name[0], "j0");
+  EXPECT_EQ(received->name[1], "j2");
+  EXPECT_DOUBLE_EQ(received->position[0], 1.0);
+  EXPECT_DOUBLE_EQ(received->effort[0], 0.5);
+  EXPECT_DOUBLE_EQ(received->velocity[1], -2.0);
+}
+
+TEST_F(RobotBridgeTest, EmptyMotorCommandIsNotPublished)
+{
+  int count = 0;
+  auto sub = node_->create_subscription<sensor_msgs::msg::JointState>(
+    "motor_commands", 10, [&](sensor_msgs::msg::JointState::SharedPtr) {count++;});
+  uint8_t buf[proto::MAX_FRAME];
+  const size_t n = proto::EncodeMotorCommand(nullptr, 0, buf, sizeof(buf));
+  WriteBytes(buf, n);
+  SpinFor(50);
+  EXPECT_EQ(count, 0);
 }
 
 TEST_F(RobotBridgeTest, ImuFramePublishesImu)

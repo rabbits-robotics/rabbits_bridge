@@ -1,6 +1,7 @@
 // robot_bridge: rabcl の共通プロトコル（rabcl::protocol）でファームとシリアル通信する汎用ノード。
 // 機体の違いはパラメータ（device / baud / joints / modes）だけ。関節名は URDF と同じにする。
-//   出力: joint_states (sensor_msgs/JointState), imu/data (sensor_msgs/Imu),
+//   出力: joint_states (sensor_msgs/JointState), motor_commands (sensor_msgs/JointState。MOTOR_COMMAND =
+//         ファームがモータに出している指令), imu/data (sensor_msgs/Imu),
 //         firmware_reboot (std_msgs/Empty。SYSTEM の uptime が減った = ファーム再起動を検出したとき、
 //         および bridge 起動後に初めて SYSTEM を受けたときに 1 回)
 //   入力: reference_command (rabbits_msgs/ReferenceCommand)
@@ -44,6 +45,7 @@ private:
 
   rclcpp::Subscription<rabbits_msgs::msg::ReferenceCommand>::SharedPtr reference_sub_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr motor_command_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reboot_pub_;
   rclcpp::TimerBase::SharedPtr read_timer_;

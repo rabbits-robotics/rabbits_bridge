@@ -69,6 +69,8 @@ void RobotBridge::Init()
     "reference_command", 10,
     std::bind(&RobotBridge::ReferenceCallback, this, std::placeholders::_1));
   joint_state_pub_ = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
+  motor_command_pub_ =
+    this->create_publisher<sensor_msgs::msg::JointState>("motor_commands", 10);
   imu_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("imu/data", 10);
   reboot_pub_ = this->create_publisher<std_msgs::msg::Empty>("firmware_reboot", 10);
   read_timer_ = this->create_wall_timer(
@@ -169,6 +171,28 @@ void RobotBridge::OnFrame(proto::Type type, const uint8_t * payload, uint8_t len
         }
         msg.header.stamp = this->now();
         joint_state_pub_->publish(msg);
+        break;
+      }
+    case proto::Type::MOTOR_COMMAND: {
+        proto::MotorCommand cmds[proto::MAX_MOTOR_COMMANDS];
+        uint8_t count = 0;
+        if (!proto::DecodeMotorCommand(payload, len, cmds, proto::MAX_MOTOR_COMMANDS, count)) {
+          return;
+        }
+        sensor_msgs::msg::JointState msg;
+        if (!rabcl_ros2::Convert::MotorCommandsToMsg(cmds, count, joints_, msg) &&
+          !unknown_joint_warned_)
+        {
+          RCLCPP_WARN(
+            this->get_logger(), "received a joint id outside parameter 'joints' (%zu names)",
+            joints_.size());
+          unknown_joint_warned_ = true;
+        }
+        if (msg.name.empty()) {
+          return;
+        }
+        msg.header.stamp = this->now();
+        motor_command_pub_->publish(msg);
         break;
       }
     case proto::Type::IMU: {

@@ -15,6 +15,7 @@ PC（ROS 2）と機体のファームをつなぐノード。
 | 向き | トピック | 型 |
 |---|---|---|
 | 出力 | `joint_states` | `sensor_msgs/JointState`（名前は YAML の `joints`） |
+| 出力 | `motor_commands` | `sensor_msgs/JointState`（`MOTOR_COMMAND`。ファームがモータに出している指令。名前は YAML の `joints`） |
 | 出力 | `imu/data` | `sensor_msgs/Imu`（frame_id `imu_link`） |
 | 出力 | `firmware_reboot` | `std_msgs/Empty`。ファームの再起動を検出したとき 1 回（下記） |
 | 入力 | `reference_command` | `rabbits_msgs/ReferenceCommand` |
