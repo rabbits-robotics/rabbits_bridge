@@ -1,7 +1,7 @@
-# gamma: gamma_turret_fw（ESP32-P4）。Jetson の UART に接続
+# gamma: gamma_turret_fw（ESP32-P4）。上位 PC の USB-UART 変換（AE-FT234X）に接続。device は launch の引数で上書きする
 robot_bridge:
   ros__parameters:
-    device: /dev/ttyTHS1
+    device: /dev/serial/by-id/usb-FTDI_FT230X_Basic_UART_DP04TJ8I-if00-port0
     baud: 921600
     # 関節番号順（gamma_turret_fw の src/robot.hpp と同じ並び）。名前は URDF の関節名
     # （roll と脚は URDF 追加時に同じ名前を使う）

@@ -24,7 +24,7 @@ PC（ROS 2）と機体のファームをつなぐノード。
 
 | 名前 | 内容 |
 |---|---|
-| `device` | シリアルデバイス（例 `/dev/ttyACM0`、Jetson の UART は `/dev/ttyTHS1`） |
+| `device` | シリアルデバイス（例 `/dev/ttyACM0`、`/dev/ttyUSB0`。USB-UART 変換は `/dev/serial/by-id/...` で固定するとポート番号の入れ替わりに強い） |
 | `baud` | 115200 / 230400 / 460800 / 921600 / 1000000 / 2000000 |
 | `joints` | 関節番号順の関節名。ファームの `robot.hpp` と同じ並びにし、名前は URDF と同じにする |
 | `modes` | モード番号順のモード名（gamma: `load`, `fire`, `speed`, `chassis`, `stabilize`） |
