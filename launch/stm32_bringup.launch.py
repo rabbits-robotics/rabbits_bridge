@@ -16,11 +16,11 @@ def generate_launch_description():
             '/gamepad.launch.py'])
     )
 
-    # game_client_interface_launch = IncludeLaunchDescription(
-    #     PythonLaunchDescriptionSource([os.path.join(
-    #         get_package_share_directory('attracts_interface'), 'launch'),
-    #         '/game_client.launch.py'])
-    # )
+    game_client_interface_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([os.path.join(
+            get_package_share_directory('attracts_interface'), 'launch'),
+            '/game_client.launch.py'])
+    )
 
     stm32_bridge_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
@@ -37,6 +37,6 @@ def generate_launch_description():
     ld.add_action(gamepad_interface_launch)
     # ld.add_action(game_client_interface_launch)
     ld.add_action(stm32_bridge_launch)
-    ld.add_action(transceiver_module_bridge_launch)
+    # ld.add_action(transceiver_module_bridge_launch)
 
     return ld

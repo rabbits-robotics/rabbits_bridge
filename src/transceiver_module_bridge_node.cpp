@@ -5,7 +5,8 @@
 TransceiverModuleBridge::TransceiverModuleBridge()
 : Node("transceiver_module_bridge_node"), buffer_index_(0), control_lost_counter_(0)
 {
-  device_name_ = "/dev/ttyUSB0";
+  // device_name_ = "/dev/ttyUSB0";
+  device_name_ = "/dev/ttyTransceiver";
   fd1_ = OpenSerialPort(device_name_);
   if (fd1_ < 0) {
     RCLCPP_ERROR(this->get_logger(), "Serial Failed: could not open %s", device_name_.c_str());

@@ -10,7 +10,8 @@
 Stm32Bridge::Stm32Bridge()
 : Node("stm32_bridge_node")
 {
-  device_name_ = "/dev/ttyACM0";
+  // device_name_ = "/dev/ttyACM0";
+  device_name_ =  "/dev/ttySTM32";
   fd1_ = OpenSerialPort(device_name_);
   if (fd1_ < 0) {
     RCLCPP_ERROR(this->get_logger(), "Serial Failed: could not open %s", device_name_.c_str());
