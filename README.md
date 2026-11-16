@@ -24,7 +24,7 @@ PC（ROS 2）と機体のファームをつなぐノード。
 
 | 名前 | 内容 |
 |---|---|
-| `device` | シリアルデバイス（例 `/dev/ttyACM0`、`/dev/ttyUSB0`。USB-UART 変換は `/dev/serial/by-id/...` で固定するとポート番号の入れ替わりに強い） |
+| `device` | シリアルデバイス（例 `/dev/ttyACM0`、`/dev/ttyUSB0`。USB-UART 変換は `/dev/serial/by-id/...` で固定するとポート番号の入れ替わりに強い）。開けないとき、または動作中に読み書きが `EAGAIN` 以外で失敗したとき（USB が抜けた: `EIO` / `ENXIO`）は FATAL を出してノードを終える。つなぎ直しは起動側（gamma は launch が bridge の終了で全体を終え、Pi の systemd が起動し直す） |
 | `baud` | 115200 / 230400 / 460800 / 921600 / 1000000 / 2000000 |
 | `joints` | 関節番号順の関節名。ファームの `robot.hpp` と同じ並びにし、名前は URDF と同じにする |
 | `modes` | モード番号順のモード名（gamma: `load`, `fire`, `speed`, `chassis`, `stabilize`） |

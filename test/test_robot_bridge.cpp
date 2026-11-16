@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <chrono>
+#include <csignal>
 #include <cstring>
 #include <string>
 #include <thread>
@@ -102,7 +103,9 @@ protected:
   void SpinFor(int ms)
   {
     const auto start = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - start < std::chrono::milliseconds(ms)) {
+    while (rclcpp::ok() &&
+      std::chrono::steady_clock::now() - start < std::chrono::milliseconds(ms))
+    {
       rclcpp::spin_some(node_);
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
@@ -416,6 +419,20 @@ TEST_F(RobotBridgeTest, MismatchedReferenceIsDropped)
   SpinFor(50);
 
   EXPECT_TRUE(ReadFrames().empty());
+}
+
+TEST_F(RobotBridgeTest, ShutsDownWhenTheSerialDeviceIsGone)
+{
+  // USB 抜けの代わりに相手側を閉じる。write は EPIPE（実機のシリアルなら EIO）になる。
+  // launch は bridge の終了で全体を終え、systemd が起動し直してつなぎ直す
+  signal(SIGPIPE, SIG_IGN);
+  close(fd_[1]);
+  fd_[1] = -1;
+  auto pub = node_->create_publisher<rabbits_msgs::msg::ReferenceCommand>("reference_command", 10);
+  pub->publish(MakeReference(0.1));
+  SpinFor(50);
+
+  EXPECT_FALSE(rclcpp::ok());
 }
 
 int main(int argc, char ** argv)

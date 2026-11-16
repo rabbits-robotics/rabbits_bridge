@@ -105,14 +105,16 @@ int RobotBridge::OpenSerialPort(const std::string & device, int baud)
 
 void RobotBridge::ReadTimerCallback()
 {
+  if (device_lost_) {
+    return;
+  }
   FlushTx();
   uint8_t buf[512];
   while (true) {
     const ssize_t n = read(fd_, buf, sizeof(buf));
     if (n < 0) {
       if (errno != EAGAIN && errno != EWOULDBLOCK) {
-        RCLCPP_ERROR_THROTTLE(
-          this->get_logger(), *this->get_clock(), 1000, "read failed: %s", strerror(errno));
+        OnDeviceLost("read");
       }
       return;
     }
@@ -279,6 +281,10 @@ void RobotBridge::WriteFrame(const uint8_t * buf, size_t len)
 
 void RobotBridge::FlushTx()
 {
+  if (device_lost_) {
+    tx_pending_.clear();
+    return;
+  }
   size_t written = 0;
   while (written < tx_pending_.size()) {
     const ssize_t n = write(fd_, tx_pending_.data() + written, tx_pending_.size() - written);
@@ -286,14 +292,29 @@ void RobotBridge::FlushTx()
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         break;  // 送信バッファが一杯。残りは次の機会に
       }
-      RCLCPP_ERROR_THROTTLE(
-        this->get_logger(), *this->get_clock(), 1000, "write failed: %s", strerror(errno));
       tx_pending_.clear();
+      OnDeviceLost("write");
       return;
     }
     written += static_cast<size_t>(n);
   }
   tx_pending_.erase(tx_pending_.begin(), tx_pending_.begin() + static_cast<long>(written));
+}
+
+void RobotBridge::OnDeviceLost(const char * op)
+{
+  if (device_lost_) {
+    return;
+  }
+  device_lost_ = true;
+  RCLCPP_FATAL(
+    this->get_logger(),
+    "%s failed: %s. the serial device is gone, shutting down (the launch restarts)",
+    op, strerror(errno));
+  if (read_timer_) {
+    read_timer_->cancel();
+  }
+  rclcpp::shutdown();
 }
 
 #ifndef RABBITS_BRIDGE_EXCLUDE_MAIN

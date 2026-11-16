@@ -39,6 +39,9 @@ private:
   void WriteFrame(const uint8_t * buf, size_t len);
   // 送信待ちを書けるだけ書く。EAGAIN なら残して次回に回す
   void FlushTx();
+  // read / write が EAGAIN 以外で失敗した（USB が抜けた: EIO / ENXIO など）。ログを出してノードを終える。
+  // launch は bridge の終了で全体を終え、Pi では systemd が起動し直してつなぎ直す
+  void OnDeviceLost(const char * op);
   static void OnFrameStatic(
     rabcl::protocol::Type type, const uint8_t * payload, uint8_t len, void * ctx);
   void OnFrame(rabcl::protocol::Type type, const uint8_t * payload, uint8_t len);
@@ -53,6 +56,7 @@ private:
   std::vector<std::string> joints_;
   std::vector<std::string> modes_;
   int fd_ = -1;
+  bool device_lost_ = false;  // OnDeviceLost 後。以降は読み書きしない
   rabcl::protocol::Parser parser_;
   std::vector<uint8_t> tx_pending_;  // まだ書けていない送信バイト列
   static constexpr size_t TX_PENDING_MAX = 64 * 1024;  // これを超えたら古い分を捨てる
